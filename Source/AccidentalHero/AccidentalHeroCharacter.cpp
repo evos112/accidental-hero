@@ -26,6 +26,7 @@
 #include "Items/FoliageHarvestLibrary.h"
 #include "Items/CropPlant.h"
 #include "Items/FarmPlot.h"
+#include "Items/WaterSource.h"
 #include "Blueprint/UserWidget.h"
 #include "Save/SaveSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -443,6 +444,34 @@ bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
 				FString::Printf(TEXT("Out of %s"), *Item->DisplayName.ToString()));
 		}
 		return false;
+	}
+
+	// A waterskin is used, not eaten: it spends one swig and stays in the pack, refillable at any
+	// water. Charges are stored in the entry's durability, so this reuses the wear machinery.
+	if (Item->IsWaterContainer())
+	{
+		if (!Inventory->ConsumeContainerCharge(Item))
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow,
+					FString::Printf(TEXT("Your %s is empty. Refill it at water."),
+						*Item->DisplayName.ToString()));
+			}
+			return false;
+		}
+
+		if (AttributeSet)
+		{
+			// PreAttributeChange clamps to MaxThirst, so overfilling is harmless.
+			AttributeSet->SetThirst(AttributeSet->GetThirst() + Item->ContainerThirstPerUse);
+		}
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan,
+				FString::Printf(TEXT("You drink from the %s."), *Item->DisplayName.ToString()));
+		}
+		return true;
 	}
 
 	if (Item->IsConsumable())
@@ -930,18 +959,18 @@ AResourceNode* AAccidentalHeroCharacter::GetAimedHandPickable() const
 	return nullptr;
 }
 
-bool AAccidentalHeroCharacter::PlaceFarmPlot()
+AActor* AAccidentalHeroCharacter::PlaceStructure(UItemDefinition* Item, TSubclassOf<AActor> StructureClass,
+	float Clearance, float MinGroundNormalZ, const FString& Noun)
 {
 	UInventoryComponent* Inventory = GetInventoryComponent();
-	if (!HasAuthority() || !FarmPlotItem || !FarmPlotClass || !Inventory
-		|| !Inventory->HasItem(FarmPlotItem, 1))
+	if (!HasAuthority() || !Item || !StructureClass || !Inventory || !Inventory->HasItem(Item, 1))
 	{
-		return false;
+		return nullptr;
 	}
 
 	const FVector Target = GetActorLocation() + GetActorForwardVector() * PlantRange;
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(PlaceFarmPlot), false, this);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(PlaceStructure), false, this);
 	FHitResult Ground;
 	if (!GetWorld()->LineTraceSingleByChannel(Ground, Target + FVector(0, 0, 300),
 			Target - FVector(0, 0, 500), ECC_Visibility, Params))
@@ -950,57 +979,103 @@ bool AAccidentalHeroCharacter::PlaceFarmPlot()
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("No ground to build on."));
 		}
-		return false;
+		return nullptr;
 	}
 
-	// A raised bed needs level ground — stricter than a single seed, since the whole frame sits flat.
-	if (Ground.ImpactNormal.Z < 0.9f)
+	// Built things need level ground — stricter than a single seed, since the whole frame sits flat.
+	if (Ground.ImpactNormal.Z < MinGroundNormalZ)
 	{
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("Ground is too uneven for a bed."));
+			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow,
+				FString::Printf(TEXT("Ground is too uneven for a %s."), *Noun));
 		}
-		return false;
+		return nullptr;
 	}
 
+	// Spacing is measured against others of the same kind, so a well doesn't block a bed.
 	TArray<AActor*> Existing;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFarmPlot::StaticClass(), Existing);
-	for (const AActor* Plot : Existing)
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), StructureClass, Existing);
+	for (const AActor* Other : Existing)
 	{
-		if (Plot && FVector::Dist(Plot->GetActorLocation(), Ground.ImpactPoint) < PlotClearance)
+		if (Other && FVector::Dist2D(Other->GetActorLocation(), Ground.ImpactPoint) < Clearance)
 		{
 			if (GEngine)
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("Too close to another bed."));
+				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow,
+					FString::Printf(TEXT("Too close to another %s."), *Noun));
 			}
-			return false;
+			return nullptr;
 		}
 	}
 
-	if (Inventory->RemoveItem(FarmPlotItem, 1) <= 0)
+	if (Inventory->RemoveItem(Item, 1) <= 0)
 	{
-		return false;
+		return nullptr;
 	}
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	// Square up to the player so beds line up with how you were standing when you built them.
-	const FRotator PlotRotation(0.0f, GetActorRotation().Yaw, 0.0f);
-	AFarmPlot* Placed = GetWorld()->SpawnActor<AFarmPlot>(FarmPlotClass,
-		FTransform(PlotRotation, Ground.ImpactPoint), SpawnParams);
+	// Square up to the player so built things line up with how you were standing.
+	const FRotator PlaceRotation(0.0f, GetActorRotation().Yaw, 0.0f);
+	AActor* Placed = GetWorld()->SpawnActor<AActor>(StructureClass,
+		FTransform(PlaceRotation, Ground.ImpactPoint), SpawnParams);
 
 	if (!Placed)
 	{
-		Inventory->AddItem(FarmPlotItem, 1);
-		return false;
+		// Spawn failed after the item was spent — hand it back rather than eating it.
+		Inventory->AddItem(Item, 1);
+		return nullptr;
 	}
 
 	if (GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Bed placed."));
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green,
+			FString::Printf(TEXT("%s placed."), *Noun));
 	}
-	return true;
+	return Placed;
+}
+
+bool AAccidentalHeroCharacter::PlaceFarmPlot()
+{
+	return PlaceStructure(FarmPlotItem, FarmPlotClass, PlotClearance, 0.9f, TEXT("bed")) != nullptr;
+}
+
+bool AAccidentalHeroCharacter::PlaceWell()
+{
+	return PlaceStructure(WellItem, WellClass, PlotClearance, 0.9f, TEXT("well")) != nullptr;
+}
+
+bool AAccidentalHeroCharacter::DrinkFromWater()
+{
+	if (!HasAuthority())
+	{
+		return false;
+	}
+
+	// Nearest reachable water wins; ponds and wells are the same actor so both are found here.
+	TArray<AActor*> Sources;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWaterSource::StaticClass(), Sources);
+
+	AWaterSource* Nearest = nullptr;
+	float NearestDistSq = TNumericLimits<float>::Max();
+	for (AActor* Actor : Sources)
+	{
+		AWaterSource* Source = Cast<AWaterSource>(Actor);
+		if (!Source || !Source->IsInRange(this))
+		{
+			continue;
+		}
+		const float DistSq = FVector::DistSquared2D(Source->GetActorLocation(), GetActorLocation());
+		if (DistSq < NearestDistSq)
+		{
+			NearestDistSq = DistSq;
+			Nearest = Source;
+		}
+	}
+
+	return Nearest && Nearest->Drink(this);
 }
 
 bool AAccidentalHeroCharacter::WaterAimedCrop()
@@ -1240,6 +1315,13 @@ bool AAccidentalHeroCharacter::PlantSeed()
 
 void AAccidentalHeroCharacter::Craft(const FInputActionValue& Value)
 {
+	// Standing at water is unambiguous, so drinking comes first — and the same press refills a
+	// waterskin, so there's no separate "fill" verb to discover.
+	if (DrinkFromWater())
+	{
+		return;
+	}
+
 	// Tending beats taking: if the crop in front of you is thirsty and you're carrying a can, E
 	// waters it rather than stripping it. Otherwise a player with a can could never water anything
 	// they could also harvest.
@@ -1286,11 +1368,11 @@ void AAccidentalHeroCharacter::Craft(const FInputActionValue& Value)
 
 	if (!Station)
 	{
-		// Nothing to pick and no station. Build a bed if one is being carried, otherwise sow a
-		// seed. Placing beats planting so a player holding both doesn't scatter seeds when they
-		// meant to lay out a farm. Both sit last in the chain, so neither can steal the keypress
-		// from harvesting or a workbench.
-		if (PlaceFarmPlot() || PlantSeed())
+		// Nothing to pick and no station. Build what's being carried, otherwise sow a seed.
+		// Placing beats planting so a player holding both doesn't scatter seeds when they meant to
+		// lay out a farm. All sit last in the chain, so none can steal the keypress from
+		// harvesting or a workbench.
+		if (PlaceWell() || PlaceFarmPlot() || PlantSeed())
 		{
 			return;
 		}

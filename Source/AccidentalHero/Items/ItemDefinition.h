@@ -67,6 +67,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Tool", meta = (ClampMin = "0"))
 	int32 MaxDurability = 0;
 
+	/** Thirst restored per swig from a refillable container such as a waterskin. Zero means this
+	 *  isn't a container. Containers reuse MaxDurability as their number of swigs, so a full skin
+	 *  is a full-durability entry and refilling at water restores it — no second charge system. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Container", meta = (ClampMin = "0.0"))
+	float ContainerThirstPerUse = 0.0f;
+
+	/** True when the item can be filled at a water source and drunk from later. */
+	UFUNCTION(BlueprintPure, Category = "Item|Container")
+	bool IsWaterContainer() const { return ContainerThirstPerUse > 0.0f && MaxDurability > 0; }
+
 	/** Hunger restored when this item is consumed. Zero means it isn't food. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Consumable", meta = (ClampMin = "0.0"))
 	float HungerRestore = 0.0f;

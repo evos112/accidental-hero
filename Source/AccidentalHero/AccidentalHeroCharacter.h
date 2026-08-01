@@ -27,6 +27,7 @@ class UFoliageHarvestSet;
 class UGameplayEffect;
 class ACropPlant;
 class AFarmPlot;
+class AWaterSource;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
 struct FGameplayTagContainer;
@@ -274,6 +275,12 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Survival|Farming")
 	bool PlaceFarmPlot();
 
+	/** Shared build step behind PlaceFarmPlot and PlaceWell: check the item, find level ground
+	 *  ahead, enforce spacing against others of the same class, spend the item and spawn.
+	 *  Refunds the item if the spawn fails. Returns null when anything blocks it. */
+	AActor* PlaceStructure(UItemDefinition* Item, TSubclassOf<AActor> StructureClass,
+		float Clearance, float MinGroundNormalZ, const FString& Noun);
+
 	/** How far a seed will reach to find a free bed slot before falling back to bare ground. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Farming", meta = (ClampMin = "0.0"))
 	float PlotSnapRange = 400.0f;
@@ -281,6 +288,21 @@ protected:
 	/** Minimum spacing between beds, so they can't be stacked on top of each other. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Farming", meta = (ClampMin = "0.0"))
 	float PlotClearance = 300.0f;
+
+	/** Drinks from the nearest water in reach, refilling thirst and any waterskin carried. */
+	UFUNCTION(BlueprintCallable, Category = "Survival|Water")
+	bool DrinkFromWater();
+
+	/** Item consumed to build a well, and the water source it becomes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Survival|Water")
+	TObjectPtr<UItemDefinition> WellItem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Survival|Water")
+	TSubclassOf<AWaterSource> WellClass;
+
+	/** Consumes a well item and places it on the ground ahead. */
+	UFUNCTION(BlueprintCallable, Category = "Survival|Water")
+	bool PlaceWell();
 
 	/** Carrying this lets E water a thirsty crop. Null means watering is disabled entirely. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Survival|Farming")

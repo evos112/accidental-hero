@@ -53,6 +53,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool SpendToolDurability(int32 EntryIndex);
 
+	/** Tops a refillable container back up to full. Returns false when nothing needed filling, so
+	 *  callers can tell whether the interaction did anything. */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool RefillContainer(UItemDefinition* Item);
+
+	/** Spends one swig from a container. Unlike SpendToolDurability this never destroys the entry
+	 *  at zero — an empty waterskin is still a waterskin, and the whole point is refilling it.
+	 *  Returns false when every copy is already empty. */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool ConsumeContainerCharge(UItemDefinition* Item);
+
 	/** Durability of the copy of Item that would be used next, or -1 when it doesn't wear.
 	 *  This is what the UI should show: it matches the tool the player would actually swing. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")

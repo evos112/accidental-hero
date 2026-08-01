@@ -300,6 +300,63 @@ bool UInventoryComponent::SpendToolDurability(int32 EntryIndex)
 	return bBroke;
 }
 
+bool UInventoryComponent::RefillContainer(UItemDefinition* Item)
+{
+	if (!Item || !Item->IsWaterContainer())
+	{
+		return false;
+	}
+
+	bool bFilledAny = false;
+	for (FInventoryItemEntry& Entry : InventoryList.Items)
+	{
+		if (Entry.ItemDef == Item && Entry.Durability < Item->MaxDurability)
+		{
+			Entry.Durability = Item->MaxDurability;
+			InventoryList.MarkItemDirty(Entry);
+			bFilledAny = true;
+		}
+	}
+
+	if (bFilledAny)
+	{
+		NotifyInventoryChanged();
+	}
+	return bFilledAny;
+}
+
+bool UInventoryComponent::ConsumeContainerCharge(UItemDefinition* Item)
+{
+	if (!Item || !Item->IsWaterContainer())
+	{
+		return false;
+	}
+
+	// Fullest first, so a part-used skin isn't drained to nothing while a full one sits beside it.
+	int32 BestIndex = INDEX_NONE;
+	int32 BestCharges = 0;
+	for (int32 Index = 0; Index < InventoryList.Items.Num(); ++Index)
+	{
+		const FInventoryItemEntry& Entry = InventoryList.Items[Index];
+		if (Entry.ItemDef == Item && Entry.Durability > BestCharges)
+		{
+			BestCharges = Entry.Durability;
+			BestIndex = Index;
+		}
+	}
+
+	if (BestIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	FInventoryItemEntry& Entry = InventoryList.Items[BestIndex];
+	Entry.Durability = FMath::Max(0, Entry.Durability - 1);
+	InventoryList.MarkItemDirty(Entry);
+	NotifyInventoryChanged();
+	return true;
+}
+
 int32 UInventoryComponent::GetItemDurability(UItemDefinition* Item) const
 {
 	if (!IsDamageable(Item))
