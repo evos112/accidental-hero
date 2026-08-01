@@ -428,6 +428,12 @@ When asked to rebuild / relaunch / test, use the project script — not manual `
   jungle look) is several times a real forest. Thinning the trees to 45% inside the biome took it to
   **66–74 fps**, GPU 76 → 12 ms. **Always `ProfileGPU` and read the pass table before assuming which
   earlier gotcha applies.** (2026-08-01)
+- **⚠️ An fps number is only true from the FIRST PIE of a freshly restarted editor, swept across
+  four view directions.** Same spot in the rainforest: yaw 45 gave 100 fps and yaw 225 gave 39 — a 2×
+  swing from turning around. And the identical build read 64–83 fps mid-session versus 39–47 on the
+  first PIE after an editor restart, so a long session flatters nothing: it reads *slower*, and the
+  mid-session high number was the outlier. Restart, take the first PIE, sweep four yaws, quote the
+  worst, and say "on a fresh session". This produced two wrong reports to the user in one day. (2026-08-02)
 - **`frame_timing()` right after `StartPIE` reads a startup hitch** — 91 ms / 11 fps "GameThread
   bound" that vanished to 108 fps on the next call. Sample it two or three times before believing
   it; and `analyse()` on a trace reports the **whole editor session**, not your capture window, so
