@@ -148,7 +148,20 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
    **Still a mockup:** seven of the paper doll's eight slots. Only Tool is wired — there is no armour
    or weapon in the game to fill Head/Chest/Legs/Feet/Hands/Back/Primary. The character also has no
    skeletal mesh assigned, so an equipped tool cannot be shown in hand.
-10. **The checklist** — the goal system, and a UI for it.
+10. ~~**The checklist**~~ — **DONE.** `UGoalDefinition` (a "Goal" primary asset type) + `UGoalSubsystem`
+    on the GameInstance, so progress survives respawn and level reload. Every goal is "obtain N of
+    item X", which covers crafting, smelting, building and harvesting with one rule.
+    **Completion is sticky:** goals are things you make in order to spend, so re-testing against the
+    current inventory would un-tick lines as the player used what they built. Ticks persist in the
+    save (`CompletedGoals`, save version 2) and are restored *before* the inventory, otherwise
+    restoring items re-evaluates the checklist and a spent goal reads as unfinished.
+    The six rungs: stone pickaxe → 2 coal → iron ingot → farm plot → well → steel axe. None are in
+    the starting kit — the first draft used a Stone Axe and a Waterskin, both of which the player
+    already spawns with, so two lines ticked before the game began.
+    Verified in PIE: 0/6 at spawn; ticks on acquisition; stays ticked after the item is spent; 6/6
+    fires the completion banner; and after save→reload it is still 6/6 with 0 pickaxes held.
+    **Partial:** the checklist draws into `GoalHdr`/`GoalList` labels that do not exist in
+    WBP_Inventory yet, so it is currently readable only through the on-screen completion messages.
 11. **Content** — item icons (**not one item has one**), a real farm-bed mesh, audio (there is none).
 12. **Co-op** — listen server, 2–4 players, invite-only.
 13. **Ship-shape** — settings, key rebinding, main menu, performance re-verification.

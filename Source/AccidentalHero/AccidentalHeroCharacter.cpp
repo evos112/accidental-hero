@@ -20,6 +20,7 @@
 #include "AbilitySystem/GE_BiomeDrain.h"
 #include "World/BiomeDefinition.h"
 #include "World/BiomeSubsystem.h"
+#include "Progression/GoalSubsystem.h"
 #include "Items/InventoryComponent.h"
 #include "Items/CraftingComponent.h"
 #include "Items/Furnace.h"
@@ -480,6 +481,12 @@ UItemDefinition* AAccidentalHeroCharacter::GetEquippedItem() const
 {
 	const UInventoryComponent* Inventory = GetInventoryComponent();
 	return Inventory ? Inventory->GetEquippedItem() : nullptr;
+}
+
+UGoalSubsystem* AAccidentalHeroCharacter::GetGoals() const
+{
+	const UGameInstance* GI = GetGameInstance();
+	return GI ? GI->GetSubsystem<UGoalSubsystem>() : nullptr;
 }
 
 bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
@@ -1465,7 +1472,25 @@ void AAccidentalHeroCharacter::OnCraftingResultDebug(URecipeDefinition* Recipe, 
 void AAccidentalHeroCharacter::RefreshInventoryDebugDisplay()
 {
 	UInventoryComponent* PlayerInventory = GetInventoryComponent();
-	if (!PlayerInventory || !GEngine)
+	if (!PlayerInventory)
+	{
+		return;
+	}
+
+	// The checklist is "obtain N of X", so every inventory change is exactly when it can advance.
+	// Server-only: goal state is single-player progress and is written straight into the save.
+	if (HasAuthority())
+	{
+		if (const UGameInstance* GI = GetGameInstance())
+		{
+			if (UGoalSubsystem* Goals = GI->GetSubsystem<UGoalSubsystem>())
+			{
+				Goals->EvaluateGoals(PlayerInventory);
+			}
+		}
+	}
+
+	if (!GEngine)
 	{
 		return;
 	}

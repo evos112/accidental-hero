@@ -9,6 +9,7 @@
 #include "Items/InventoryComponent.h"
 #include "Items/CraftingComponent.h"
 #include "Items/ItemDefinition.h"
+#include "Progression/GoalSubsystem.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -128,6 +129,14 @@ bool USaveSubsystem::SaveGame()
 		for (int32 Index = 0; Index < UInventoryComponent::HotbarSlotCount; ++Index)
 		{
 			Save->HotbarSlots.Add(Inventory->GetHotbarItem(Index));
+		}
+	}
+
+	if (const UGameInstance* GI = GetGameInstance())
+	{
+		if (const UGoalSubsystem* Goals = GI->GetSubsystem<UGoalSubsystem>())
+		{
+			Save->CompletedGoals = Goals->GetCompletedGoalIds();
 		}
 	}
 
@@ -272,6 +281,17 @@ void USaveSubsystem::RestorePlayer(AAccidentalHeroCharacter* Character)
 		Attributes->SetStamina(LoadedSave->Stamina);
 		Attributes->SetHunger(LoadedSave->Hunger);
 		Attributes->SetThirst(LoadedSave->Thirst);
+	}
+
+	// Must precede the inventory restore. Adding items fires OnInventoryChanged, which re-evaluates
+	// the checklist — with the completed set not yet in place, a goal whose item has since been
+	// spent would read as unfinished and the player would silently lose a tick they had earned.
+	if (const UGameInstance* GI = GetGameInstance())
+	{
+		if (UGoalSubsystem* Goals = GI->GetSubsystem<UGoalSubsystem>())
+		{
+			Goals->RestoreCompleted(LoadedSave->CompletedGoals);
+		}
 	}
 
 	if (UInventoryComponent* Inventory = Character->GetInventoryComponent())

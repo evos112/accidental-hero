@@ -3,6 +3,9 @@
 #include "InventoryWidget.h"
 #include "HotbarSlotWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "AccidentalHeroCharacter.h"
+#include "Progression/GoalDefinition.h"
+#include "Progression/GoalSubsystem.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanelSlot.h"
@@ -85,7 +88,57 @@ void UInventoryWidget::RefreshAll()
 	RefreshSlots();
 	RefreshMeters();
 	RefreshEquipment();
+	RefreshGoals();
 	ShowItemDetail(nullptr);
+}
+
+void UInventoryWidget::RefreshGoals()
+{
+	// Degrades quietly when the widget isn't in the Blueprint yet — the checklist system is useful
+	// on its own, and a missing label shouldn't take the panel down with it.
+	UTextBlock* List = Find<UTextBlock>(TEXT("GoalList"));
+	UTextBlock* Header = Find<UTextBlock>(TEXT("GoalHdr"));
+	if (!List && !Header)
+	{
+		return;
+	}
+
+	const APawn* Pawn = GetOwningPlayerPawn();
+	const AAccidentalHeroCharacter* Character = Cast<AAccidentalHeroCharacter>(Pawn);
+	UGoalSubsystem* Goals = Character ? Character->GetGoals() : nullptr;
+	if (!Goals)
+	{
+		return;
+	}
+
+	if (Header)
+	{
+		Header->SetText(FText::FromString(FString::Printf(TEXT("CHECKLIST  %d/%d"),
+			Goals->GetCompletedCount(), Goals->GetTotalCount())));
+	}
+
+	if (List)
+	{
+		FString Text;
+		for (const FGoalStatus& Status : Goals->GetGoalStatuses(GetInventory()))
+		{
+			if (!Status.Goal)
+			{
+				continue;
+			}
+			Text += FString::Printf(TEXT("%s %s"),
+				Status.bComplete ? TEXT("[x]") : TEXT("[  ]"),
+				*Status.Goal->DisplayName.ToString());
+
+			// Only show a count where it tells you something; "1/1" on every line is noise.
+			if (!Status.bComplete && Status.Goal->RequiredCount > 1)
+			{
+				Text += FString::Printf(TEXT("  %d/%d"), Status.Progress, Status.Goal->RequiredCount);
+			}
+			Text += LINE_TERMINATOR;
+		}
+		List->SetText(FText::FromString(Text));
+	}
 }
 
 void UInventoryWidget::RefreshEquipment()

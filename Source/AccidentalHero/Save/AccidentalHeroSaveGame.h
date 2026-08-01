@@ -90,7 +90,7 @@ class ACCIDENTALHERO_API UAccidentalHeroSaveGame : public USaveGame
 public:
 	/** Bumped whenever the layout below changes meaning. Loading a mismatched version is refused
 	 *  rather than half-applied — a wrong load is worse than a lost one. */
-	static constexpr int32 CurrentVersion = 1;
+	static constexpr int32 CurrentVersion = 2;
 
 	UPROPERTY()
 	int32 SaveVersion = CurrentVersion;
@@ -134,4 +134,10 @@ public:
 
 	UPROPERTY()
 	TArray<FSavedCrop> Crops;
+
+	//~ Progression
+	/** GoalIds already ticked. Stored by id rather than index so reordering or adding checklist
+	 *  lines can't silently re-point a completed goal at a different one. */
+	UPROPERTY()
+	TArray<FName> CompletedGoals;
 };

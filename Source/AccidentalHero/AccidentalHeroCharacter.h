@@ -30,6 +30,7 @@ class ACropPlant;
 class AFarmPlot;
 class AWaterSource;
 class UBiomeDefinition;
+class UGoalSubsystem;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
 struct FGameplayTagContainer;
@@ -112,6 +113,11 @@ public:
 	 *  reach through the PlayerState to the inventory component. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
 	UItemDefinition* GetEquippedItem() const;
+
+	/** The checklist tracker (SPEC 5.7). Passthrough so UI and tests don't have to walk the
+	 *  GameInstance to find it. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Goals")
+	UGoalSubsystem* GetGoals() const;
 
 	/** All Recipe.Category.Crafting recipes. Blocking asset load -- call once at HUD init, never per-frame. */
 	UFUNCTION(BlueprintCallable, Category = "Crafting")
