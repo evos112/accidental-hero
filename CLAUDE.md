@@ -382,4 +382,22 @@ When asked to rebuild / relaunch / test, use the project script — not manual `
 - **`FHitResult`'s `Item` and `Component` are protected in Python** — you cannot build a synthetic hit or
   read one back. Test foliage-instance code through a vector-based entry point, or via a real trace whose
   result you pass straight into C++ without inspecting. (2026-08-01)
+- **Check the landscape's XY scale before sculpting anything small.** `L_World_Landscape` is
+  **625 cm per vertex**, so a 14 m pond spanned under 3 cells and no basin could be shaped around it —
+  the feature had to grow to 40 m to exist on that grid. `get_landscape_info()` gives scale +
+  `resolution_x`; world XY → vertex index is just `world / scale` (origin is 0,0 here). (2026-08-01)
+- **A flat water plane must be *smaller* than its basin, not equal to it.** If the shoreline radius
+  matches the plane's edge, the waterline you see is the mesh silhouette — a perfect square. Put the
+  terrain's water-level crossing **inside** the plane's minimum half-extent (pond: waterline r=1700 vs
+  half-extent 2000) so the visible shore is the round terrain contour and the square edge stays buried
+  under the bank. Carve inside with `min(existing, bowl)` and raise the bank with `max(existing, rim)`
+  so a single pass never cuts terrain it wasn't asked to. (2026-08-01)
+- **`export_heightmap` → `import_heightmap` is a reliable undo for a bad sculpt.** Restoring the PNG
+  returned the exact pre-carve heights (−532.0 at the test point), which is what made it safe to throw
+  away a first attempt and re-carve in one clean pass instead of stacking corrective passes. Export
+  before every sculpt. (2026-08-01)
+- **`/Engine/EngineMaterials/WaterMaterial` does not exist** — `load_asset` returns `None`, and passing
+  that straight into `set_material` silently clears the slot instead of erroring.
+  `/DatasmithContent/Materials/Water/M_Water` loads and reads as real water. Always check a material
+  loaded before assigning it. (2026-08-01)
 <!-- END VibeUE -->
