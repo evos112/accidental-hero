@@ -31,6 +31,7 @@ class AFarmPlot;
 class AWaterSource;
 class UBiomeDefinition;
 class UGoalSubsystem;
+class UChecklistWidget;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
 struct FGameplayTagContainer;
@@ -119,6 +120,17 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Goals")
 	UGoalSubsystem* GetGoals() const;
 
+	/** Jumps to a debug landmark by name from the console (`DebugTeleport rainforest`), or to the
+	 *  next one with F5. Exists so a packaged build can be measured somewhere other than spawn
+	 *  without walking 1.7 km to get there.
+	 *
+	 *  The declaration is unguarded because UHT rejects UFUNCTION inside a preprocessor block; the
+	 *  bodies compile away in Shipping instead. */
+	UFUNCTION(Exec)
+	void DebugTeleport(const FString& PlaceName);
+
+	void DebugTeleportNext();
+
 	/** All Recipe.Category.Crafting recipes. Blocking asset load -- call once at HUD init, never per-frame. */
 	UFUNCTION(BlueprintCallable, Category = "Crafting")
 	TArray<URecipeDefinition*> GetCraftingRecipes();
@@ -185,6 +197,18 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
 	void OnToggleInventoryUI();
 
+	/** J — shows or hides the checklist panel (SPEC 5.7). Handled in C++ rather than a Blueprint
+	 *  event because the panel has no state of its own beyond "is it up". */
+	void ToggleChecklistUI(const FInputActionValue& Value);
+
+	/** WBP_Checklist. Set on the character Blueprint; without it J reports the gap rather than
+	 *  silently doing nothing. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UChecklistWidget> ChecklistWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UChecklistWidget> ChecklistWidget;
+
 	/** Implement in a Blueprint child to show/hide WBP_CrosshairSettings. Fired by F10. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
 	void OnToggleCrosshairUI();
@@ -230,6 +254,9 @@ protected:
 	float BiomeSpeedMultiplier = 1.0f;
 
 	FTimerHandle BiomeCheckTimerHandle;
+
+	/** Which debug landmark F5 will jump to next. */
+	int32 DebugTeleportIndex = 0;
 
 	/** Blocking-loads every "Item" primary asset and returns those tagged with any tag in Tags.
 	 *  Mirrors AFurnace::RefreshSmeltingRecipeCache's AssetManager scan pattern. */
@@ -398,6 +425,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> InventoryAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> ChecklistAction;
 
 	/** One action per quick-bar key, 1 through 8. An array rather than eight named properties so
 	 *  binding is a loop and the slot index comes straight from the position. */

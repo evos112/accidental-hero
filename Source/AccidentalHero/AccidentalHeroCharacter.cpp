@@ -21,6 +21,7 @@
 #include "World/BiomeDefinition.h"
 #include "World/BiomeSubsystem.h"
 #include "Progression/GoalSubsystem.h"
+#include "UI/ChecklistWidget.h"
 #include "Items/InventoryComponent.h"
 #include "Items/CraftingComponent.h"
 #include "Items/Furnace.h"
@@ -131,6 +132,9 @@ AAccidentalHeroCharacter::AAccidentalHeroCharacter()
 
 	InventoryAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Inventory"));
 
+	ChecklistAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Checklist"));
+	ChecklistAction->ValueType = EInputActionValueType::Boolean;
+
 	HotbarActions.SetNum(UInventoryComponent::HotbarSlotCount);
 	for (int32 Index = 0; Index < HotbarActions.Num(); ++Index)
 	{
@@ -169,6 +173,8 @@ AAccidentalHeroCharacter::AAccidentalHeroCharacter()
 	DefaultMappingContext->MapKey(CrosshairAction, EKeys::F10);
 	DefaultMappingContext->MapKey(CameraToggleAction, EKeys::V);
 	DefaultMappingContext->MapKey(InventoryAction, EKeys::I);
+	// J for the checklist: next to I, and clear of the number row the quick bar owns.
+	DefaultMappingContext->MapKey(ChecklistAction, EKeys::J);
 
 	// Quick bar on the number row, the way every action-bar game does it.
 	static const FKey HotbarKeys[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four,
@@ -459,6 +465,7 @@ void AAccidentalHeroCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(CrosshairAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::ToggleCrosshairUI);
 		EnhancedInputComponent->BindAction(CameraToggleAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::ToggleCameraView);
 		EnhancedInputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::ToggleInventoryUI);
+		EnhancedInputComponent->BindAction(ChecklistAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::ToggleChecklistUI);
 
 		// All eight keys share one handler; the slot index rides along as a bound payload.
 		for (int32 Index = 0; Index < HotbarActions.Num(); ++Index)
@@ -470,6 +477,15 @@ void AAccidentalHeroCharacter::SetupPlayerInputComponent(UInputComponent* Player
 			}
 		}
 	}
+
+#if !UE_BUILD_SHIPPING
+	// Bound as a raw key rather than an InputAction: this is a developer tool, and giving it an
+	// asset would put it in the mapping context alongside real bindings the player can rebind.
+	if (PlayerInputComponent)
+	{
+		PlayerInputComponent->BindKey(EKeys::F5, IE_Pressed, this, &AAccidentalHeroCharacter::DebugTeleportNext);
+	}
+#endif
 }
 
 void AAccidentalHeroCharacter::HotbarSlotPressed(const FInputActionValue& Value, int32 SlotIndex)
@@ -488,6 +504,79 @@ UGoalSubsystem* AAccidentalHeroCharacter::GetGoals() const
 	const UGameInstance* GI = GetGameInstance();
 	return GI ? GI->GetSubsystem<UGoalSubsystem>() : nullptr;
 }
+
+#if !UE_BUILD_SHIPPING
+namespace
+{
+	/** Debug landmarks, in the order F5 cycles them. Z sits above the terrain and the pawn is
+	 *  dropped onto it, so these stay right even after the ground is resculpted. */
+	struct FDebugPlace
+	{
+		const TCHAR* Name;
+		FVector Location;
+	};
+
+	const FDebugPlace GDebugPlaces[] = {
+		{ TEXT("spawn"),      FVector(380000.0,  60000.0,   600.0) },
+		{ TEXT("pond"),       FVector(340000.0,  68000.0,   200.0) },
+		{ TEXT("rainforest"), FVector(420000.0, 232500.0, -5500.0) },
+		{ TEXT("town"),       FVector(305000.0, 295000.0,   200.0) },
+		{ TEXT("village"),    FVector(340000.0, 190000.0,   200.0) },
+	};
+}
+
+void AAccidentalHeroCharacter::DebugTeleport(const FString& PlaceName)
+{
+	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(GDebugPlaces)); ++Index)
+	{
+		if (PlaceName.Equals(GDebugPlaces[Index].Name, ESearchCase::IgnoreCase))
+		{
+			DebugTeleportIndex = Index;
+			DebugTeleportNext();
+			return;
+		}
+	}
+
+	if (GEngine)
+	{
+		FString Names;
+		for (const FDebugPlace& Place : GDebugPlaces)
+		{
+			Names += FString::Printf(TEXT("%s "), Place.Name);
+		}
+		GEngine->AddOnScreenDebugMessage(-1, 6.0f, FColor::Yellow,
+			FString::Printf(TEXT("Unknown place '%s'. Try: %s"), *PlaceName, *Names));
+	}
+}
+
+void AAccidentalHeroCharacter::DebugTeleportNext()
+{
+	const FDebugPlace& Place = GDebugPlaces[DebugTeleportIndex];
+	DebugTeleportIndex = (DebugTeleportIndex + 1) % UE_ARRAY_COUNT(GDebugPlaces);
+
+	// Drop onto whatever is under the target rather than trusting a hardcoded Z — the terrain has
+	// been resculpted several times and a stale height would bury or float the pawn.
+	FVector Target = Place.Location;
+	FHitResult Hit;
+	const FVector TraceStart = Target + FVector(0.0, 0.0, 20000.0);
+	const FVector TraceEnd = Target - FVector(0.0, 0.0, 40000.0);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DebugTeleport), false, this);
+	if (GetWorld() && GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, Params))
+	{
+		Target = Hit.ImpactPoint + FVector(0.0, 0.0, 120.0);
+	}
+
+	SetActorLocation(Target, false, nullptr, ETeleportType::TeleportPhysics);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green,
+			FString::Printf(TEXT("Teleported to %s  (F5 for next)"), Place.Name));
+	}
+}
+#else
+void AAccidentalHeroCharacter::DebugTeleport(const FString& PlaceName) {}
+void AAccidentalHeroCharacter::DebugTeleportNext() {}
+#endif
 
 bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
 {
@@ -562,6 +651,38 @@ bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
 void AAccidentalHeroCharacter::ToggleInventoryUI(const FInputActionValue& Value)
 {
 	OnToggleInventoryUI();
+}
+
+void AAccidentalHeroCharacter::ToggleChecklistUI(const FInputActionValue& Value)
+{
+	// Created on first use rather than at BeginPlay: the checklist is glanced at occasionally, and
+	// there is no reason to carry the widget while it is closed.
+	if (ChecklistWidget && ChecklistWidget->IsInViewport())
+	{
+		ChecklistWidget->RemoveFromParent();
+		ChecklistWidget = nullptr;
+		return;
+	}
+
+	if (!ChecklistWidgetClass)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Yellow,
+				TEXT("No checklist widget class set on the character Blueprint."));
+		}
+		return;
+	}
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		ChecklistWidget = CreateWidget<UChecklistWidget>(PC, ChecklistWidgetClass);
+		if (ChecklistWidget)
+		{
+			ChecklistWidget->AddToViewport();
+			ChecklistWidget->Refresh();
+		}
+	}
 }
 
 void AAccidentalHeroCharacter::ToggleCrosshairUI(const FInputActionValue& Value)

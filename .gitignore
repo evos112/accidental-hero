@@ -71,3 +71,6 @@ desktop.ini
 
 # Stray marketplace promo image left at the project root
 /OldWest_VOL4.png
+
+# Packaged build output - 2.8 GB of cooked data, rebuildable from source
+Packaged/

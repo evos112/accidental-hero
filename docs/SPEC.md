@@ -160,8 +160,13 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
     already spawns with, so two lines ticked before the game began.
     Verified in PIE: 0/6 at spawn; ticks on acquisition; stays ticked after the item is spent; 6/6
     fires the completion banner; and after save→reload it is still 6/6 with 0 pickaxes held.
-    **Partial:** the checklist draws into `GoalHdr`/`GoalList` labels that do not exist in
-    WBP_Inventory yet, so it is currently readable only through the on-screen completion messages.
+    **UI done (2026-08-02):** `UChecklistWidget` + `WBP_Checklist`, toggled with **J**. Its own panel
+    rather than a corner of WBP_Inventory — that canvas is already full (equipment, backpack,
+    condition, selected item, nearby storage, quick bar) and an attempt to fit the list in landed on
+    top of the condition panel. Each line shows its hint until ticked, and the widget binds to
+    `OnGoalCompleted` so a tick appears the moment it is earned.
+    Verified in PIE: reads `CHECKLIST 0 / 6` with all six hints, and acquiring a stone pickaxe
+    flipped it to `1 / 6` with that line ticked and its hint gone.
 11. **Content** — **icons and the farm bed are DONE; audio is blocked.**
     All 27 items have an icon (rendered in-editor from meshes by a SceneCapture2D rig) and a
     WorldMesh, so dropped items are no longer invisible. Icons are stand-ins built from existing
