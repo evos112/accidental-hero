@@ -342,6 +342,11 @@ When asked to rebuild / relaunch / test, use the project script — not manual `
   −2.29 while they displayed 0 — meaning eating would have repaid a hidden debt before the bar moved.
   Clamp in `PostGameplayEffectExecute` too (`SetHunger(FMath::Clamp(GetHunger(), 0, GetMaxHunger()))`),
   as the project already does for Health/Stamina/Mana. (2026-08-01)
+- **New data assets are invisible to `UAssetManager` until the editor restarts.** A `URecipeDefinition`
+  created in-session loads fine by path and appears in the asset registry, but
+  `GetPrimaryAssetIdList("Recipe")` — which `FindRecipesWithTag` uses — still returns the list built
+  at startup, so the recipe never shows in the crafting UI. Restart the editor after adding primary
+  data assets before concluding the data is wrong. (2026-08-01)
 - **⚠️ Saves silently return False when a SECOND editor instance has the project open.** The log shows
   `MoveFile ... (Error Code 32)` (sharing violation) then `LogSavePackage: Error: Error saving ...`;
   `save_dirty_packages` just returns False and the .uasset mtime never changes. `BuildAndLaunchGame.ps1`
