@@ -163,6 +163,14 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
     **Partial:** the checklist draws into `GoalHdr`/`GoalList` labels that do not exist in
     WBP_Inventory yet, so it is currently readable only through the on-screen completion messages.
 11. **Content** — item icons (**not one item has one**), a real farm-bed mesh, audio (there is none).
+    **Partly done:** nine meshes modelled in Blender by the project owner are imported under
+    `/Game/Meshes/Blender` — furnace, anvil, barrel, bellows, firewood pile, three fence variants and
+    a street lamp. `BP_Furnace` now uses `SM_Furnace` instead of an engine Cylinder (its interaction
+    sphere went 150 → 250, since the mesh is 2.3 m wide and the old radius barely cleared its own
+    footprint). Lamps and a fence run are placed at spawn.
+    **Note on re-importing these:** the `.blend` objects sit away from the scene origin, so a naive
+    FBX export gives Unreal a pivot metres from the geometry. `scratchpad/bl_export2.py` re-pivots
+    each object to base-centre before exporting; do that again rather than fixing it per-Blueprint.
 12. **Co-op** — listen server, 2–4 players, invite-only.
 13. **Ship-shape** — settings, key rebinding, main menu, performance re-verification.
 
