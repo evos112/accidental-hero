@@ -130,8 +130,14 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
 5. **Tree regrowth** — depleted nodes return to foliage instances (§6.3).
 6. **Durability** — extend the inventory entry (§6.2), then tool wear and breaking.
 7. **Steel tier** — ore, recipes, and the tools themselves.
-8. **Compact the valley** — bring wood, stone, iron, water and flat farmland within ~1 km of spawn.
-   Move the off-map towns back onto the landscape; place the six unpositioned POI markers.
+8. ~~**Compact the valley**~~ — **DONE.** Within 1 km of spawn: 1,917 pines (wood), 357 boulders
+   (stone, and iron ore via pickaxe at 50%/strike), the home pond at 408 m, and flat farmland.
+   Off-map settlements moved back on; the six POI water markers now have ponds. The 14 `BG_Mountain`
+   backdrop meshes were ringed around the world origin instead of the map centre, which had left four
+   2 km-wide mountains standing on playable terrain — re-centred.
+   **Note:** coal had no source anywhere in the game, so both smelting recipes were uncraftable and
+   the entire metal half of the tool ladder (§5.3) was unreachable. `DA_Recipe_Charcoal` (3 Timber →
+   2 Coal, 12 s, smelting) closes it. Verified in PIE end to end: timber → charcoal → iron ingot.
 9. **Equip system** — hotbar keys currently report "no equip system yet"; the paper doll is a mockup.
 10. **The checklist** — the goal system, and a UI for it.
 11. **Content** — item icons (**not one item has one**), a real farm-bed mesh, audio (there is none).
