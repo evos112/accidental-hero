@@ -419,7 +419,35 @@ When asked to rebuild / relaunch / test, use the project script — not manual `
   So "run N passes to beat rejection" overshoots by N× on small regions — check `instances_rejected`
   before adding passes. A 1 km-radius biome at 54k instances/km² still reads as open savanna; jungle
   density is ~1 instance per 2 m², which is only affordable over a ~200 m radius. (2026-08-01)
+- **⚠️ Dense Nanite foliage is a SHADOW cost, not a shading cost.** The rainforest ran at 12–26 fps;
+  `ProfileGPU` put `ShadowDepths` at **71.8 ms of a 78.7 ms frame**, almost all of it
+  `RenderVirtualShadowMaps(Nanite)` → `HW Rasterize (Triangles)` (51 ms). Every Nanite tree
+  re-rasterises into the VSM every frame. Note the 2026-08-01 WPO fix did **not** apply here —
+  `r.Velocity.EnableVertexDeformation 0` changed nothing, and turning shadows off on grass/shrubs
+  only bought 84→76 ms. The cause was density: 35,000 canopy trees/km² (my own overshoot chasing a
+  jungle look) is several times a real forest. Thinning the trees to 45% inside the biome took it to
+  **66–74 fps**, GPU 76 → 12 ms. **Always `ProfileGPU` and read the pass table before assuming which
+  earlier gotcha applies.** (2026-08-01)
+- **`frame_timing()` right after `StartPIE` reads a startup hitch** — 91 ms / 11 fps "GameThread
+  bound" that vanished to 108 fps on the next call. Sample it two or three times before believing
+  it; and `analyse()` on a trace reports the **whole editor session**, not your capture window, so
+  its averages are contaminated by editor idle and shader-compile frames. (2026-08-01)
 - **Python `==` on `FGameplayTag` is always False** — even `tag == tag`. The repr prints `{}` too, so
   a correctly-set tag looks empty. Verify with `tag.export_text()`, which prints
   `(TagName="Biome.Rainforest")`. (2026-08-01)
+- **⚠️ `execute_python_code` has a hard 30 s timeout, and a partial run leaves broken state.** Rebuilding
+  a material *and* reassigning + saving 39 static meshes in one call timed out at 55 s; the old material
+  had already been deleted, so the result was an empty material graph and 39 meshes with no material.
+  Split heavy asset work into separate calls — build graph / assign / `save_dirty_packages` — and always
+  re-verify rather than re-running (the retry can double-apply the half that did land). (2026-08-01)
+- **`AssetTools.create_asset` returns `None` if the asset still exists**, and `EditorAssetLibrary.delete_asset`
+  silently fails on a material that is loaded/referenced. The delete+recreate idiom then hands you `None`,
+  and the next `create_material_expression` dies with `'NoneType' has no attribute set_editor_property`.
+  To rewrite a material, keep the asset and call `MaterialEditingLibrary.delete_all_material_expressions(mat)`,
+  then rebuild the graph in place. (2026-08-01)
+- **Smart UV Project packs every mesh into 0..1, so shared tiling materials get wildly different texel
+  density per prop.** A 6.5 m wall and a 0.65 m headstone both filled the UV square, making the stones on
+  one huge and the other microscopic. Use `bpy.ops.uv.cube_project(cube_size=N)` instead — UVs then span
+  `size/N`, giving one texture repeat per N metres on every asset. Lightmap UVs still come from UE's
+  `generate_lightmap_u_vs` on import. (2026-08-01)
 <!-- END VibeUE -->

@@ -180,7 +180,12 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
     FBX export gives Unreal a pivot metres from the geometry. `scratchpad/bl_export2.py` re-pivots
     each object to base-centre before exporting; do that again rather than fixing it per-Blueprint.
 12. **Co-op** — listen server, 2–4 players, invite-only.
-13. **Ship-shape** — settings, key rebinding, main menu, performance re-verification.
+13. **Ship-shape** — settings, key rebinding, main menu.
+    ~~performance re-verification~~ — **DONE (2026-08-01).** Measured in PIE: spawn ~108 fps
+    (GPU-bound), rainforest interior **12–26 fps**. `ProfileGPU` blamed `ShadowDepths` for 71.8 ms of
+    a 78.7 ms frame — Nanite trees rasterising into virtual shadow maps. Fixed by thinning the
+    rainforest's trees to 45% (the 35,000/km² canopy density was several times a real forest):
+    rainforest now **66–74 fps**, spawn ~200 fps. Ground cover and shrubs no longer cast shadows.
 
 ## 9. Standing engineering notes
 
