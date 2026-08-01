@@ -46,7 +46,7 @@ int32 ATreeNode::GetStrikePower(AAccidentalHeroCharacter* Player) const
 {
 	// No equipment system yet, so this is "best axe carried" rather than "axe equipped" — a
 	// crafted axe takes effect the moment it lands in the bag.
-	const int32 AxeTier = GetBestToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Axe);
+	const int32 AxeTier = GetEquippedToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Axe);
 	return AxeTier > 0 ? AxeTier * PowerPerAxeTier : BareHandPower;
 }
 

@@ -138,7 +138,16 @@ Dependency-ordered. Steps 1–2 are the difference between a tech demo and a gam
    **Note:** coal had no source anywhere in the game, so both smelting recipes were uncraftable and
    the entire metal half of the tool ladder (§5.3) was unreachable. `DA_Recipe_Charcoal` (3 Timber →
    2 Coal, 12 s, smelting) closes it. Verified in PIE end to end: timber → charcoal → iron ingot.
-9. **Equip system** — hotbar keys currently report "no equip system yet"; the paper doll is a mockup.
+9. ~~**Equip system**~~ — **DONE.** `EquippedItem` on `UInventoryComponent` (replicated to the owner,
+   so it survives respawn with the rest of the pack). A hotbar key equips, and pressing it again puts
+   the item away. **What you hold is what works:** harvest nodes read `GetEquippedToolTier` instead of
+   scanning the pack, so a steel axe no longer chops from inside the backpack, and only the equipped
+   tool takes the wear. Breaking or running out clears the hand automatically.
+   Verified in PIE: bare hands strike power 1 vs stone axe 2; packed axe 30→30 durability, equipped
+   axe 30→29; on break the hand empties.
+   **Still a mockup:** seven of the paper doll's eight slots. Only Tool is wired — there is no armour
+   or weapon in the game to fill Head/Chest/Legs/Feet/Hands/Back/Primary. The character also has no
+   skeletal mesh assigned, so an equipped tool cannot be shown in hand.
 10. **The checklist** — the goal system, and a UI for it.
 11. **Content** — item icons (**not one item has one**), a real farm-bed mesh, audio (there is none).
 12. **Co-op** — listen server, 2–4 players, invite-only.

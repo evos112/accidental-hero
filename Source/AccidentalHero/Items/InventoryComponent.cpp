@@ -54,6 +54,49 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	// different (still compile-time-constant, as DOREPLIFETIME_CONDITION requires) condition.
 	DOREPLIFETIME_CONDITION(UInventoryComponent, InventoryList, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UInventoryComponent, HotbarSlots, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UInventoryComponent, EquippedItem, COND_OwnerOnly);
+}
+
+UItemDefinition* UInventoryComponent::EquipItem(UItemDefinition* Item)
+{
+	// Re-equipping what's already in hand puts it away, so one hotbar key is both equip and unequip.
+	EquippedItem = (Item && Item != EquippedItem && HasItem(Item, 1)) ? Item : nullptr;
+	NotifyInventoryChanged();
+	return EquippedItem;
+}
+
+int32 UInventoryComponent::GetEquippedToolTier(const FGameplayTag& ToolTag) const
+{
+	if (!EquippedItem || !ToolTag.IsValid() || !EquippedItem->ItemTags.HasTag(ToolTag))
+	{
+		return 0;
+	}
+	return EquippedItem->ToolTier;
+}
+
+int32 UInventoryComponent::FindEquippedEntry() const
+{
+	if (!EquippedItem)
+	{
+		return INDEX_NONE;
+	}
+
+	int32 Best = INDEX_NONE;
+	for (int32 Index = 0; Index < InventoryList.Items.Num(); ++Index)
+	{
+		const FInventoryItemEntry& Entry = InventoryList.Items[Index];
+		if (Entry.ItemDef != EquippedItem || Entry.StackCount <= 0)
+		{
+			continue;
+		}
+		// Lowest durability first, matching FindBestToolEntry: finish a worn copy before starting
+		// a fresh one, so the player isn't left with a pack full of half-used tools.
+		if (Best == INDEX_NONE || Entry.Durability < InventoryList.Items[Best].Durability)
+		{
+			Best = Index;
+		}
+	}
+	return Best;
 }
 
 bool UInventoryComponent::IsDamageable(const UItemDefinition* ItemDef)
@@ -419,5 +462,14 @@ bool UInventoryComponent::Server_RemoveItem_Validate(UItemDefinition* ItemDef, i
 
 void UInventoryComponent::NotifyInventoryChanged()
 {
+	// One place to catch the hand holding something that is no longer in the pack — a tool that
+	// broke, a stack that was eaten, an item dropped. Every mutation path ends here. Server-only:
+	// on clients EquippedItem arrives by replication and must not be second-guessed, since their
+	// copy of InventoryList may not have caught up yet.
+	if (EquippedItem && GetOwnerRole() == ROLE_Authority && !HasItem(EquippedItem, 1))
+	{
+		EquippedItem = nullptr;
+	}
+
 	OnInventoryChanged.Broadcast();
 }

@@ -62,10 +62,12 @@ protected:
 	 *  axes fell a tree in fewer swings. */
 	virtual int32 GetStrikePower(AAccidentalHeroCharacter* Player) const { return 1; }
 
-	/** Highest ToolTier among carried items tagged ToolTag, or 0 if the player has none.
+	/** ToolTier of the *equipped* item if it is tagged ToolTag, else 0 — which means bare hands.
 	 *  Tier lives on the item and purpose lives in the tag, so adding a Bronze Axe is data only.
-	 *  Reads the held stacks rather than scanning every Item asset — this runs per swing. */
-	int32 GetBestToolTier(AAccidentalHeroCharacter* Player, const FGameplayTag& ToolTag) const;
+	 *
+	 *  Deliberately the equipped item and not the best one carried: when this scanned the whole
+	 *  pack, a steel axe worked from inside the backpack and the hotbar had nothing to do. */
+	int32 GetEquippedToolTier(AAccidentalHeroCharacter* Player, const FGameplayTag& ToolTag) const;
 
 	/** Spends one use of whichever tool backs ToolTag. Call once per *successful* harvest, so a
 	 *  swing that missed or hit a depleted node costs nothing. Server-only; safe to call when the

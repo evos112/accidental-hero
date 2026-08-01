@@ -69,6 +69,25 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	int32 GetItemDurability(UItemDefinition* Item) const;
 
+	/** Puts Item in hand. Passing null, or an item you don't hold, empties the hand. Equipping the
+	 *  item already equipped takes it off again, so one hotbar key toggles. Returns what is now
+	 *  equipped. Authoritative — only call where HasAuthority() is true. */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	UItemDefinition* EquipItem(UItemDefinition* Item);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
+	UItemDefinition* GetEquippedItem() const { return EquippedItem; }
+
+	/** Tier of the equipped item if it carries ToolTag, else 0 — which is bare hands. Harvest nodes
+	 *  ask this instead of scanning the pack, so what you are holding is what does the work. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
+	int32 GetEquippedToolTier(const FGameplayTag& ToolTag) const;
+
+	/** Entry index of the equipped item, lowest durability first so a worn copy is finished before
+	 *  a fresh one is started. INDEX_NONE when the hand is empty. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
+	int32 FindEquippedEntry() const;
+
 	/** Authoritative mutator — only call where HasAuthority() is true. Returns the quantity
 	 *  actually removed (may be less than Count if the inventory doesn't hold that many). */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -135,6 +154,11 @@ protected:
 	 *  inventory itself — nobody else needs to know what's on your bar. */
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<UItemDefinition>> HotbarSlots;
+
+	/** What's in hand, held as an item type rather than an entry index so it survives the entry
+	 *  array reshuffling when other stacks are added or removed. */
+	UPROPERTY(Replicated)
+	TObjectPtr<UItemDefinition> EquippedItem;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	int32 MaxSlots = 20;

@@ -30,7 +30,7 @@ bool AForageNode::Harvest(AAccidentalHeroCharacter* Player)
 			FMath::Max(FibreYieldMin, FibreYieldMax));
 
 		// A knife cuts grass rather than tearing it — the reason to carry one early.
-		const int32 KnifeTier = GetBestToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Knife);
+		const int32 KnifeTier = GetEquippedToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Knife);
 		if (KnifeTier > 0)
 		{
 			Amount += KnifeTier * KnifeBonusPerTier;

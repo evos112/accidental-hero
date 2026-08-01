@@ -108,6 +108,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Survival|Biome")
 	UBiomeDefinition* GetCurrentBiome() const { return CurrentBiome; }
 
+	/** What's in hand, or null for bare hands. Passthrough so the HUD and paper doll don't have to
+	 *  reach through the PlayerState to the inventory component. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
+	UItemDefinition* GetEquippedItem() const;
+
 	/** All Recipe.Category.Crafting recipes. Blocking asset load -- call once at HUD init, never per-frame. */
 	UFUNCTION(BlueprintCallable, Category = "Crafting")
 	TArray<URecipeDefinition*> GetCraftingRecipes();

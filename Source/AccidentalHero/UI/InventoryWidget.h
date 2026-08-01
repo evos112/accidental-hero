@@ -68,6 +68,9 @@ private:
 	void RefreshSlots();
 	void RefreshMeters();
 
+	/** Writes the equipped item's name into the paper doll's Tool slot. */
+	void RefreshEquipment();
+
 	/** Sets one meter's label text and scales its fill bar to Current/Max. */
 	void ApplyMeter(const FString& Prefix, float Current, float Max, bool bShowAsWeight = false);
 

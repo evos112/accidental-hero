@@ -476,6 +476,12 @@ void AAccidentalHeroCharacter::HotbarSlotPressed(const FInputActionValue& Value,
 	UseHotbarSlot(SlotIndex);
 }
 
+UItemDefinition* AAccidentalHeroCharacter::GetEquippedItem() const
+{
+	const UInventoryComponent* Inventory = GetInventoryComponent();
+	return Inventory ? Inventory->GetEquippedItem() : nullptr;
+}
+
 bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
 {
 	UInventoryComponent* Inventory = GetInventoryComponent();
@@ -534,14 +540,16 @@ bool AAccidentalHeroCharacter::UseHotbarSlot(int32 SlotIndex)
 		return ConsumeItem(Item);
 	}
 
-	// Tools and materials have no "use" yet — there is no equip system. Say so rather than
-	// silently doing nothing, so the key never feels broken.
+	// Anything else goes in hand. Pressing the same slot again puts it away, so one key is both
+	// equip and unequip and the bar never needs a separate "holster" binding.
+	UItemDefinition* NowEquipped = Inventory->EquipItem(Item);
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan,
-			FString::Printf(TEXT("%s selected (no equip system yet)"), *Item->DisplayName.ToString()));
+			NowEquipped ? FString::Printf(TEXT("Equipped %s"), *NowEquipped->DisplayName.ToString())
+			            : FString::Printf(TEXT("Put away %s"), *Item->DisplayName.ToString()));
 	}
-	return false;
+	return true;
 }
 
 void AAccidentalHeroCharacter::ToggleInventoryUI(const FInputActionValue& Value)

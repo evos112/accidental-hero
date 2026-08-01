@@ -56,15 +56,21 @@ void AResourceNode::ConsumeToolDurability(AAccidentalHeroCharacter* Player, cons
 		return;
 	}
 
-	// Same selection rule the strike power used, so the tool that did the work is the one that wears.
-	const int32 EntryIndex = Inventory->FindBestToolEntry(ToolTag);
+	// Only the tool that did the work wears, and that is whatever is in hand — matching
+	// GetEquippedToolTier, so a tool can never grant its tier without also taking the wear.
+	if (Inventory->GetEquippedToolTier(ToolTag) <= 0)
+	{
+		return;
+	}
+
+	const int32 EntryIndex = Inventory->FindEquippedEntry();
 	if (EntryIndex != INDEX_NONE)
 	{
 		Inventory->SpendToolDurability(EntryIndex);
 	}
 }
 
-int32 AResourceNode::GetBestToolTier(AAccidentalHeroCharacter* Player, const FGameplayTag& ToolTag) const
+int32 AResourceNode::GetEquippedToolTier(AAccidentalHeroCharacter* Player, const FGameplayTag& ToolTag) const
 {
 	if (!Player || !ToolTag.IsValid())
 	{
@@ -72,20 +78,7 @@ int32 AResourceNode::GetBestToolTier(AAccidentalHeroCharacter* Player, const FGa
 	}
 
 	const UInventoryComponent* Inventory = Player->GetInventoryComponent();
-	if (!Inventory)
-	{
-		return 0;
-	}
-
-	int32 BestTier = 0;
-	for (const FInventoryItemEntry& Entry : Inventory->GetAllItems())
-	{
-		if (Entry.StackCount > 0 && Entry.ItemDef && Entry.ItemDef->ItemTags.HasTag(ToolTag))
-		{
-			BestTier = FMath::Max(BestTier, Entry.ItemDef->ToolTier);
-		}
-	}
-	return BestTier;
+	return Inventory ? Inventory->GetEquippedToolTier(ToolTag) : 0;
 }
 
 bool AResourceNode::Harvest(AAccidentalHeroCharacter* Player)

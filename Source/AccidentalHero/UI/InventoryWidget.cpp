@@ -84,7 +84,21 @@ void UInventoryWidget::RefreshAll()
 {
 	RefreshSlots();
 	RefreshMeters();
+	RefreshEquipment();
 	ShowItemDetail(nullptr);
+}
+
+void UInventoryWidget::RefreshEquipment()
+{
+	// Only the Tool slot is real. The doll's other seven (Head/Chest/Legs/Feet/Hands/Back/Primary)
+	// stay as drawn placeholders because the game has no armour or weapons to put in them — wiring
+	// them to nothing would just be a mockup that looks functional.
+	if (UTextBlock* ToolText = Find<UTextBlock>(TEXT("EqToolTx")))
+	{
+		const UInventoryComponent* Inventory = GetInventory();
+		UItemDefinition* Equipped = Inventory ? Inventory->GetEquippedItem() : nullptr;
+		ToolText->SetText(Equipped ? Equipped->DisplayName : FText::FromString(TEXT("Tool")));
+	}
 }
 
 void UInventoryWidget::RefreshSlots()

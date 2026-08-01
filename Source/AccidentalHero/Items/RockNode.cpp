@@ -28,24 +28,17 @@ bool ARockNode::PlayerHasTool(AAccidentalHeroCharacter* Player, const FGameplayT
 		return false;
 	}
 
-	// Walk what the player actually holds and read each item's own tags, rather than scanning
-	// every Item asset via the AssetManager — this runs per swing, so it must stay cheap.
-	for (const FInventoryItemEntry& Entry : Inventory->GetAllItems())
-	{
-		if (Entry.StackCount > 0 && Entry.ItemDef && Entry.ItemDef->ItemTags.HasTag(ToolTag))
-		{
-			return true;
-		}
-	}
-	return false;
+	// The equipped item only: carrying a pick is not the same as swinging one, and the yield rule
+	// below is what makes choosing between hatchet and pick a decision rather than a formality.
+	return Inventory->GetEquippedToolTier(ToolTag) > 0;
 }
 
 int32 ARockNode::GetStrikePower(AAccidentalHeroCharacter* Player) const
 {
 	// Either tool breaks rock; the better one sets the pace.
 	const int32 Tier = FMath::Max(
-		GetBestToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Pickaxe),
-		GetBestToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Axe));
+		GetEquippedToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Pickaxe),
+		GetEquippedToolTier(Player, AccidentalHeroGameplayTags::Item_Tool_Axe));
 
 	return Tier > 0 ? Tier * ToolStrikePower : 1;
 }
