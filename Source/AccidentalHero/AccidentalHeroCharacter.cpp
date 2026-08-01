@@ -17,6 +17,9 @@
 #include "AbilitySystem/GE_StaminaRegen.h"
 #include "AbilitySystem/GE_FallDamage.h"
 #include "AbilitySystem/GE_SurvivalDrain.h"
+#include "AbilitySystem/GE_BiomeDrain.h"
+#include "World/BiomeDefinition.h"
+#include "World/BiomeSubsystem.h"
 #include "Items/InventoryComponent.h"
 #include "Items/CraftingComponent.h"
 #include "Items/Furnace.h"
@@ -355,6 +358,11 @@ void AAccidentalHeroCharacter::InitializeAbilitySystem()
 		{
 			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SurvivalDrainSpecHandle.Data.Get());
 		}
+
+		// Biome penalties layer on top of that baseline. Polled rather than driven by overlap
+		// events so a region can be moved or resized in the editor without rebuilding collision.
+		GetWorldTimerManager().SetTimer(BiomeCheckTimerHandle, this, &AAccidentalHeroCharacter::UpdateBiome, 1.0f, true);
+		UpdateBiome();
 	}
 
 	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UAccidentalHeroAttributeSet::GetMoveSpeedAttribute()).AddUObject(this, &AAccidentalHeroCharacter::OnMoveSpeedAttributeChanged);
@@ -367,7 +375,54 @@ void AAccidentalHeroCharacter::InitializeAbilitySystem()
 
 void AAccidentalHeroCharacter::OnMoveSpeedAttributeChanged(const FOnAttributeChangeData& Data)
 {
-	GetCharacterMovement()->MaxWalkSpeed = Data.NewValue;
+	GetCharacterMovement()->MaxWalkSpeed = Data.NewValue * BiomeSpeedMultiplier;
+}
+
+void AAccidentalHeroCharacter::UpdateBiome()
+{
+	UWorld* World = GetWorld();
+	if (!World || !AbilitySystemComponent)
+	{
+		return;
+	}
+
+	UBiomeSubsystem* Subsystem = World->GetSubsystem<UBiomeSubsystem>();
+	UBiomeDefinition* NewBiome = Subsystem ? Subsystem->GetBiomeAt(GetActorLocation()) : nullptr;
+	if (NewBiome == CurrentBiome)
+	{
+		return;
+	}
+
+	CurrentBiome = NewBiome;
+
+	// Remove the outgoing biome's drain before applying the incoming one, so crossing straight from
+	// one biome into another never leaves both running.
+	if (BiomeDrainHandle.IsValid())
+	{
+		AbilitySystemComponent->RemoveActiveGameplayEffect(BiomeDrainHandle);
+		BiomeDrainHandle.Invalidate();
+	}
+
+	if (CurrentBiome && CurrentBiome->HasSurvivalDrain())
+	{
+		FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+		FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(UGE_BiomeDrain::StaticClass(), 1, EffectContext);
+		if (SpecHandle.IsValid())
+		{
+			// Negated once, here: the data asset states drain as a positive number.
+			SpecHandle.Data->SetSetByCallerMagnitude(AccidentalHeroGameplayTags::Data_Biome_Hunger, -CurrentBiome->ExtraHungerPerSecond);
+			SpecHandle.Data->SetSetByCallerMagnitude(AccidentalHeroGameplayTags::Data_Biome_Thirst, -CurrentBiome->ExtraThirstPerSecond);
+			BiomeDrainHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		}
+	}
+
+	BiomeSpeedMultiplier = CurrentBiome ? CurrentBiome->MoveSpeedMultiplier : 1.0f;
+	if (AttributeSet)
+	{
+		// MoveSpeed itself hasn't changed, so the attribute delegate won't fire -- push the new
+		// multiplier through by hand.
+		GetCharacterMovement()->MaxWalkSpeed = AttributeSet->GetMoveSpeed() * BiomeSpeedMultiplier;
+	}
 }
 
 void AAccidentalHeroCharacter::NotifyControllerChanged()

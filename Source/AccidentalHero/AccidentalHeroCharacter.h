@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayAbilitySpecHandle.h"
+#include "GameplayEffectTypes.h"
 #include "AccidentalHeroCharacter.generated.h"
 
 class USpringArmComponent;
@@ -28,6 +29,7 @@ class UGameplayEffect;
 class ACropPlant;
 class AFarmPlot;
 class AWaterSource;
+class UBiomeDefinition;
 struct FOnAttributeChangeData;
 struct FGameplayTag;
 struct FGameplayTagContainer;
@@ -100,6 +102,11 @@ public:
 
 	/** Mutable access, used by the save system to put attribute values back on load. */
 	UAccidentalHeroAttributeSet* GetMutableAttributeSet() const { return AttributeSet; }
+
+	/** Biome the pawn is standing in, or null out in the ordinary world. Drives the "you are in the
+	 *  rainforest" HUD readout as well as the survival penalties. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Survival|Biome")
+	UBiomeDefinition* GetCurrentBiome() const { return CurrentBiome; }
 
 	/** All Recipe.Category.Crafting recipes. Blocking asset load -- call once at HUD init, never per-frame. */
 	UFUNCTION(BlueprintCallable, Category = "Crafting")
@@ -193,6 +200,25 @@ protected:
 
 	void InitializeAbilitySystem();
 	void OnMoveSpeedAttributeChanged(const FOnAttributeChangeData& Data);
+
+	/** Polls UBiomeSubsystem and, when the answer changes, swaps the biome's survival effect and
+	 *  walk-speed penalty. Runs on a 1s timer rather than per-frame: biome edges are hundreds of
+	 *  metres apart, so a frame-accurate boundary buys nothing and costs a query every tick. */
+	void UpdateBiome();
+
+	/** Null outside any region. Not replicated -- clients get their penalty through the attribute
+	 *  changes it causes, and MaxWalkSpeed is already replicated by the movement component. */
+	UPROPERTY()
+	TObjectPtr<UBiomeDefinition> CurrentBiome;
+
+	/** Live UGE_BiomeDrain, so leaving a biome removes exactly the effect it applied. */
+	FActiveGameplayEffectHandle BiomeDrainHandle;
+
+	/** Cached from CurrentBiome so OnMoveSpeedAttributeChanged can apply it without a null check
+	 *  on every attribute change (sprint alone fires it constantly). */
+	float BiomeSpeedMultiplier = 1.0f;
+
+	FTimerHandle BiomeCheckTimerHandle;
 
 	/** Blocking-loads every "Item" primary asset and returns those tagged with any tag in Tags.
 	 *  Mirrors AFurnace::RefreshSmeltingRecipeCache's AssetManager scan pattern. */

@@ -13,6 +13,11 @@ namespace AccidentalHeroGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Starving, "State.Starving", "Granted while Hunger is empty; drives the starvation health drain.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dehydrated, "State.Dehydrated", "Granted while Thirst is empty; drives the dehydration health drain.");
 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Biome_Hunger, "Data.Biome.Hunger", "SetByCaller tag carrying a biome's extra hunger drain into GE_BiomeDrain.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Biome_Thirst, "Data.Biome.Thirst", "SetByCaller tag carrying a biome's extra thirst drain into GE_BiomeDrain.");
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Biome_Rainforest, "Biome.Rainforest", "Identity tag for the tropical rainforest biome.");
+
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Category_Ore, "Item.Category.Ore", "Raw mined ore; smelting recipes will key off this tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Category_Ingot, "Item.Category.Ingot", "Smelted metal ingot; crafting recipe input/output.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Item_Category_BuildingMaterial, "Item.Category.BuildingMaterial", "Generic construction material; building system input.");

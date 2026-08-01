@@ -400,4 +400,26 @@ When asked to rebuild / relaunch / test, use the project script — not manual `
   that straight into `set_material` silently clears the slot instead of erroring.
   `/DatasmithContent/Materials/Water/M_Water` loads and reads as real water. Always check a material
   loaded before assigning it. (2026-08-01)
+- **⚠️ An `AActor` with no `RootComponent` silently cannot be placed.** `SetActorLocation` does
+  nothing and `GetActorLocation` always returns (0,0,0) — no error, no warning. `ABiomeRegion` shipped
+  without a root, so every `scatter_foliage` driven off `reg.get_actor_location()` dumped tens of
+  thousands of instances in the map corner while reporting success. Any C++ `AActor` you intend to
+  place needs `RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"))`. Assert
+  `loc != origin` before acting on an actor's position. (2026-08-01)
+- **`WorldPartitionBlueprintLibrary.load_actors` reloads actor packages from disk and discards
+  unsaved in-memory edits.** Foliage scattered but not yet saved simply vanishes, and the scatter
+  call still reported `instances_added`. Save (`save_dirty_packages`) *before* any `load_actors`, and
+  never call it as a mid-task "refresh". (2026-08-01)
+- **Iterating a `TArray` of USTRUCTs in Python yields copies.** `for lay in asset.get_editor_property("foliage_layers"): lay.set_editor_property(...)`
+  changes nothing, even followed by `set_editor_property` of the same list. Build a fresh list of new
+  struct objects and assign that. Always read the value back — the silent no-op looks identical to
+  success. (2026-08-01)
+- **`FoliageService.scatter_foliage`'s Poisson rejection scales with region size, not density.** Over
+  r=50000 it rejected ~55% of candidates; over r=20000 it rejected none and placed the target exactly.
+  So "run N passes to beat rejection" overshoots by N× on small regions — check `instances_rejected`
+  before adding passes. A 1 km-radius biome at 54k instances/km² still reads as open savanna; jungle
+  density is ~1 instance per 2 m², which is only affordable over a ~200 m radius. (2026-08-01)
+- **Python `==` on `FGameplayTag` is always False** — even `tag == tag`. The repr prints `{}` too, so
+  a correctly-set tag looks empty. Verify with `tag.export_text()`, which prints
+  `(TagName="Biome.Rainforest")`. (2026-08-01)
 <!-- END VibeUE -->
