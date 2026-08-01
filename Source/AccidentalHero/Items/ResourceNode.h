@@ -8,6 +8,7 @@
 #include "ResourceNode.generated.h"
 
 class UStaticMeshComponent;
+class UInstancedStaticMeshComponent;
 class UItemDefinition;
 class AAccidentalHeroCharacter;
 
@@ -44,6 +45,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ResourceNode")
 	int32 GetHitsRemaining() const { return HitsRemaining; }
 
+	/** Records that this node was converted from a scattered foliage instance, so that when it is
+	 *  used up it can grow back as foliage instead of lingering as an actor forever. Called by
+	 *  UFoliageHarvestLibrary at conversion time; hand-placed nodes never set this and keep the
+	 *  ordinary hide-and-respawn behaviour. */
+	UFUNCTION(BlueprintCallable, Category = "ResourceNode")
+	void SetFoliageOrigin(UInstancedStaticMeshComponent* SourceComponent, const FTransform& SourceTransform);
+
+	UFUNCTION(BlueprintPure, Category = "ResourceNode")
+	bool IsFromFoliage() const { return bFromFoliage; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -66,6 +77,10 @@ protected:
 
 	/** Timer callback (server-only). Restores HitsRemaining and clears bDepleted. */
 	virtual void Respawn();
+
+	/** Timer callback (server-only) for foliage-born nodes: puts the instance back where it came
+	 *  from and destroys this actor. Without it, every tree ever felled would stay an actor. */
+	void RegrowAsFoliage();
 
 	UFUNCTION()
 	void OnRep_Depleted();
@@ -91,6 +106,20 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "ResourceNode")
 	float RespawnSeconds = 45.0f;
+
+	/** How long a felled foliage instance takes to grow back, per SPEC 5.12. Deliberately far
+	 *  longer than RespawnSeconds: clearing an area should stay cleared while you work in it, and
+	 *  be green again next session. */
+	UPROPERTY(EditAnywhere, Category = "ResourceNode", meta = (ClampMin = "1.0"))
+	float FoliageRegrowSeconds = 1000.0f;
+
+	/** The instanced component this node was carved out of, and where it stood. Weak because
+	 *  World Partition can unload the foliage actor while a felled node is still counting down. */
+	TWeakObjectPtr<UInstancedStaticMeshComponent> SourceFoliageComponent;
+
+	FTransform SourceFoliageTransform;
+
+	bool bFromFoliage = false;
 
 	UPROPERTY(Replicated)
 	int32 HitsRemaining = 0;

@@ -7,6 +7,7 @@
 #include "InventoryTypes.h"
 #include "AccidentalHeroCharacter.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 
 AResourceNode::AResourceNode()
@@ -104,11 +105,46 @@ bool AResourceNode::Harvest(AAccidentalHeroCharacter* Player)
 	return true;
 }
 
+void AResourceNode::SetFoliageOrigin(UInstancedStaticMeshComponent* SourceComponent, const FTransform& SourceTransform)
+{
+	SourceFoliageComponent = SourceComponent;
+	SourceFoliageTransform = SourceTransform;
+	bFromFoliage = SourceComponent != nullptr;
+}
+
 void AResourceNode::Deplete()
 {
 	bDepleted = true;
 	ApplyDepletedVisualState();
+
+	// A node carved out of the foliage goes back into the foliage rather than respawning as an
+	// actor — otherwise every tree ever felled would accumulate as a permanent actor.
+	if (bFromFoliage)
+	{
+		GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &AResourceNode::RegrowAsFoliage,
+			FoliageRegrowSeconds, false);
+		return;
+	}
+
 	GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &AResourceNode::Respawn, RespawnSeconds, false);
+}
+
+void AResourceNode::RegrowAsFoliage()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// The foliage actor can be unloaded by World Partition while this counts down. Falling back to
+	// an ordinary actor respawn would leave a tree standing in an unloaded cell, so just remove
+	// this node — the instance is gone either way, and the world reloads from disk on next play.
+	if (UInstancedStaticMeshComponent* Component = SourceFoliageComponent.Get())
+	{
+		Component->AddInstance(SourceFoliageTransform, /*bWorldSpace=*/true);
+	}
+
+	Destroy();
 }
 
 void AResourceNode::Respawn()

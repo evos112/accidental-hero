@@ -37,7 +37,15 @@ namespace
 		SpawnParams.Owner = Owner;
 
 		// Instance scale is baked per-instance; carrying it over keeps a big pine big.
-		return World->SpawnActor<AResourceNode>(NodeClass, InstanceTransform, SpawnParams);
+		AResourceNode* Node = World->SpawnActor<AResourceNode>(NodeClass, InstanceTransform, SpawnParams);
+
+		// Remember where it came from so the instance can be put back when the node is used up.
+		// Without this the world loses a tree permanently and gains an actor permanently.
+		if (Node)
+		{
+			Node->SetFoliageOrigin(ISM, InstanceTransform);
+		}
+		return Node;
 	}
 }
 
