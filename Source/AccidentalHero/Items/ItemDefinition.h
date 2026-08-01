@@ -12,9 +12,6 @@
  * category tags. Category tags (Item.Category.*, see AccidentalHeroGameplayTags) are the
  * extension point crafting/smelting/building recipes key off of (e.g. "requires an item
  * tagged Item.Category.Ore"). See UInventoryComponent for how these are held/replicated.
- *
- * Deliberately separate from UWeaponDefinition for now — weapons aren't routed through the
- * inventory yet, so unifying them isn't worth touching working combat code today.
  */
 UCLASS(BlueprintType)
 class ACCIDENTALHERO_API UItemDefinition : public UDataAsset

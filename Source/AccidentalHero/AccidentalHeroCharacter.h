@@ -16,8 +16,6 @@ class UInputAction;
 class UAbilitySystemComponent;
 class UAccidentalHeroAttributeSet;
 class UGameplayAbility;
-class UGA_WeaponAttackBase;
-class UWeaponDefinition;
 class UInventoryComponent;
 class UCraftingComponent;
 class UWorldPartitionStreamingSourceComponent;
@@ -44,10 +42,6 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
-
-	/** Re-points the ability matching Weapon's WeaponType (melee/ranged/magic) at Weapon's damage/range/radius. */
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void EquipWeapon(UWeaponDefinition* NewWeapon);
 
 	/** Forwards to the InventoryComponent on this character's PlayerState (items live there so they survive respawn). */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -146,9 +140,6 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void StartSprint(const FInputActionValue& Value);
 	void StopSprint(const FInputActionValue& Value);
-	void Attack(const FInputActionValue& Value);
-	void RangedAttack(const FInputActionValue& Value);
-	void CastMagicBolt(const FInputActionValue& Value);
 
 	/** Activates UGA_Gather to harvest whatever AResourceNode is in front of the player. */
 	void Gather(const FInputActionValue& Value);
@@ -201,7 +192,6 @@ protected:
 
 	void InitializeAbilitySystem();
 	void OnMoveSpeedAttributeChanged(const FOnAttributeChangeData& Data);
-	void ConfigureAbilityStatsFromWeapon(const FGameplayAbilitySpecHandle& SpecHandle, const UWeaponDefinition* Weapon);
 
 	/** Blocking-loads every "Item" primary asset and returns those tagged with any tag in Tags.
 	 *  Mirrors AFurnace::RefreshSmeltingRecipeCache's AssetManager scan pattern. */
@@ -242,14 +232,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> SprintAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> AttackAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> RangedAttackAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> MagicBoltAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> InteractAction;
@@ -388,20 +370,7 @@ protected:
 	TSubclassOf<UGameplayAbility> SprintAbilityClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
-	TSubclassOf<UGA_WeaponAttackBase> AttackAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
-	TSubclassOf<UGA_WeaponAttackBase> RangedAttackAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
-	TSubclassOf<UGA_WeaponAttackBase> MagicBoltAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TSubclassOf<UGameplayAbility> GatherAbilityClass;
-
-	/** Optional equipped weapon; on equip, re-configures whichever attack ability matches its WeaponType. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<UWeaponDefinition> EquippedWeapon;
 
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -410,9 +379,6 @@ protected:
 	TObjectPtr<UAccidentalHeroAttributeSet> AttributeSet;
 
 	FGameplayAbilitySpecHandle SprintAbilitySpecHandle;
-	FGameplayAbilitySpecHandle AttackAbilitySpecHandle;
-	FGameplayAbilitySpecHandle RangedAttackAbilitySpecHandle;
-	FGameplayAbilitySpecHandle MagicBoltAbilitySpecHandle;
 	FGameplayAbilitySpecHandle GatherAbilitySpecHandle;
 
 	bool bAbilitySystemInitialized = false;

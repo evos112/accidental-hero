@@ -18,9 +18,6 @@ UAccidentalHeroAttributeSet::UAccidentalHeroAttributeSet()
 	InitStaminaRegenRate(10.0f);
 	InitHealth(100.0f);
 	InitMaxHealth(100.0f);
-	InitMana(100.0f);
-	InitMaxMana(100.0f);
-	InitManaRegenRate(10.0f);
 	InitHunger(100.0f);
 	InitMaxHunger(100.0f);
 	InitThirst(100.0f);
@@ -37,9 +34,6 @@ void UAccidentalHeroAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimePro
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, StaminaRegenRate, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, Mana, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, MaxMana, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, ManaRegenRate, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, Hunger, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, MaxHunger, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAccidentalHeroAttributeSet, Thirst, COND_None, REPNOTIFY_Always);
@@ -90,10 +84,6 @@ void UAccidentalHeroAttributeSet::PreAttributeChange(const FGameplayAttribute& A
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHealth());
 	}
-	else if (Attribute == GetManaAttribute())
-	{
-		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxMana());
-	}
 }
 
 void UAccidentalHeroAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
@@ -121,10 +111,6 @@ void UAccidentalHeroAttributeSet::PostGameplayEffectExecute(const FGameplayEffec
 				Character->HandleDeath();
 			}
 		}
-	}
-	else if (Data.EvaluatedData.Attribute == GetManaAttribute())
-	{
-		SetMana(FMath::Clamp(GetMana(), 0.0f, GetMaxMana()));
 	}
 
 	// Hunger/Thirst are clamped in PreAttributeChange, so by here they hold their final value.
@@ -225,17 +211,3 @@ void UAccidentalHeroAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& 
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAccidentalHeroAttributeSet, MaxHealth, OldValue);
 }
 
-void UAccidentalHeroAttributeSet::OnRep_Mana(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAccidentalHeroAttributeSet, Mana, OldValue);
-}
-
-void UAccidentalHeroAttributeSet::OnRep_MaxMana(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAccidentalHeroAttributeSet, MaxMana, OldValue);
-}
-
-void UAccidentalHeroAttributeSet::OnRep_ManaRegenRate(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAccidentalHeroAttributeSet, ManaRegenRate, OldValue);
-}

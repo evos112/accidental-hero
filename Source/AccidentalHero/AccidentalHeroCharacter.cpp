@@ -13,16 +13,10 @@
 #include "AccidentalHeroPlayerState.h"
 #include "AbilitySystem/AccidentalHeroAttributeSet.h"
 #include "AbilitySystem/GA_Sprint.h"
-#include "AbilitySystem/GA_MeleeAttack.h"
-#include "AbilitySystem/GA_RangedAttack.h"
-#include "AbilitySystem/GA_MagicBolt.h"
 #include "AbilitySystem/GA_Gather.h"
-#include "AbilitySystem/GA_WeaponAttackBase.h"
 #include "AbilitySystem/GE_StaminaRegen.h"
 #include "AbilitySystem/GE_FallDamage.h"
-#include "AbilitySystem/GE_ManaRegen.h"
 #include "AbilitySystem/GE_SurvivalDrain.h"
-#include "Items/WeaponDefinition.h"
 #include "Items/InventoryComponent.h"
 #include "Items/CraftingComponent.h"
 #include "Items/Furnace.h"
@@ -49,9 +43,6 @@ AAccidentalHeroCharacter::AAccidentalHeroCharacter()
 	PrimaryActorTick.bCanEverTick = false;
 
 	SprintAbilityClass = UGA_Sprint::StaticClass();
-	AttackAbilityClass = UGA_MeleeAttack::StaticClass();
-	RangedAttackAbilityClass = UGA_RangedAttack::StaticClass();
-	MagicBoltAbilityClass = UGA_MagicBolt::StaticClass();
 	GatherAbilityClass = UGA_Gather::StaticClass();
 	FallDamageEffect = UGE_FallDamage::StaticClass();
 
@@ -118,15 +109,6 @@ AAccidentalHeroCharacter::AAccidentalHeroCharacter()
 	SprintAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Sprint"));
 	SprintAction->ValueType = EInputActionValueType::Boolean;
 
-	AttackAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Attack"));
-	AttackAction->ValueType = EInputActionValueType::Boolean;
-
-	RangedAttackAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_RangedAttack"));
-	RangedAttackAction->ValueType = EInputActionValueType::Boolean;
-
-	MagicBoltAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_MagicBolt"));
-	MagicBoltAction->ValueType = EInputActionValueType::Boolean;
-
 	InteractAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Interact"));
 	InteractAction->ValueType = EInputActionValueType::Boolean;
 
@@ -172,9 +154,8 @@ AAccidentalHeroCharacter::AAccidentalHeroCharacter()
 	DefaultMappingContext->MapKey(LookAction, EKeys::Mouse2D).Modifiers.Add(NegateYOnly);
 	DefaultMappingContext->MapKey(JumpAction, EKeys::SpaceBar);
 	DefaultMappingContext->MapKey(SprintAction, EKeys::LeftShift);
-	DefaultMappingContext->MapKey(AttackAction, EKeys::LeftMouseButton);
-	DefaultMappingContext->MapKey(RangedAttackAction, EKeys::RightMouseButton);
-	DefaultMappingContext->MapKey(MagicBoltAction, EKeys::Q);
+	// LMB, RMB and Q are deliberately free: combat was cut (SPEC 5.2), and these are the obvious
+	// keys for whatever replaces it — tool use, aiming, or an equip system.
 	// E now opens the workbench/crafting UI. Interact (furnace deposit/withdraw) moved to F so the
 	// two don't double-fire on the same key.
 	DefaultMappingContext->MapKey(InteractAction, EKeys::F);
@@ -354,21 +335,6 @@ void AAccidentalHeroCharacter::InitializeAbilitySystem()
 			SprintAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(SprintAbilityClass, 1, INDEX_NONE, this));
 		}
 
-		if (AttackAbilityClass && !AttackAbilitySpecHandle.IsValid())
-		{
-			AttackAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AttackAbilityClass, 1, INDEX_NONE, this));
-		}
-
-		if (RangedAttackAbilityClass && !RangedAttackAbilitySpecHandle.IsValid())
-		{
-			RangedAttackAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(RangedAttackAbilityClass, 1, INDEX_NONE, this));
-		}
-
-		if (MagicBoltAbilityClass && !MagicBoltAbilitySpecHandle.IsValid())
-		{
-			MagicBoltAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(MagicBoltAbilityClass, 1, INDEX_NONE, this));
-		}
-
 		if (GatherAbilityClass && !GatherAbilitySpecHandle.IsValid())
 		{
 			GatherAbilitySpecHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(GatherAbilityClass, 1, INDEX_NONE, this));
@@ -382,22 +348,11 @@ void AAccidentalHeroCharacter::InitializeAbilitySystem()
 			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*StaminaRegenSpecHandle.Data.Get());
 		}
 
-		FGameplayEffectSpecHandle ManaRegenSpecHandle = AbilitySystemComponent->MakeOutgoingSpec(UGE_ManaRegen::StaticClass(), 1, EffectContext);
-		if (ManaRegenSpecHandle.IsValid())
-		{
-			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*ManaRegenSpecHandle.Data.Get());
-		}
-
-		// Hunger/thirst tick down from here on, mirroring the regen effects above.
+		// Hunger/thirst tick down from here on, mirroring the regen effect above.
 		FGameplayEffectSpecHandle SurvivalDrainSpecHandle = AbilitySystemComponent->MakeOutgoingSpec(UGE_SurvivalDrain::StaticClass(), 1, EffectContext);
 		if (SurvivalDrainSpecHandle.IsValid())
 		{
 			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SurvivalDrainSpecHandle.Data.Get());
-		}
-
-		if (EquippedWeapon)
-		{
-			EquipWeapon(EquippedWeapon);
 		}
 	}
 
@@ -441,9 +396,6 @@ void AAccidentalHeroCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::StartSprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AAccidentalHeroCharacter::StopSprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Canceled, this, &AAccidentalHeroCharacter::StopSprint);
-		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::Attack);
-		EnhancedInputComponent->BindAction(RangedAttackAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::RangedAttack);
-		EnhancedInputComponent->BindAction(MagicBoltAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::CastMagicBolt);
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::Interact);
 		EnhancedInputComponent->BindAction(CraftAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::Craft);
 		EnhancedInputComponent->BindAction(GatherAction, ETriggerEvent::Started, this, &AAccidentalHeroCharacter::Gather);
@@ -674,30 +626,6 @@ void AAccidentalHeroCharacter::StopSprint(const FInputActionValue& Value)
 	}
 }
 
-void AAccidentalHeroCharacter::Attack(const FInputActionValue& Value)
-{
-	if (AbilitySystemComponent && AttackAbilitySpecHandle.IsValid())
-	{
-		AbilitySystemComponent->TryActivateAbility(AttackAbilitySpecHandle);
-	}
-}
-
-void AAccidentalHeroCharacter::RangedAttack(const FInputActionValue& Value)
-{
-	if (AbilitySystemComponent && RangedAttackAbilitySpecHandle.IsValid())
-	{
-		AbilitySystemComponent->TryActivateAbility(RangedAttackAbilitySpecHandle);
-	}
-}
-
-void AAccidentalHeroCharacter::CastMagicBolt(const FInputActionValue& Value)
-{
-	if (AbilitySystemComponent && MagicBoltAbilitySpecHandle.IsValid())
-	{
-		AbilitySystemComponent->TryActivateAbility(MagicBoltAbilitySpecHandle);
-	}
-}
-
 void AAccidentalHeroCharacter::Gather(const FInputActionValue& Value)
 {
 	if (AbilitySystemComponent && GatherAbilitySpecHandle.IsValid())
@@ -764,48 +692,6 @@ bool AAccidentalHeroCharacter::ConsumeItem(UItemDefinition* Item)
 			FString::Printf(TEXT("Consumed %s"), *Item->DisplayName.ToString()));
 	}
 	return true;
-}
-
-void AAccidentalHeroCharacter::EquipWeapon(UWeaponDefinition* NewWeapon)
-{
-	EquippedWeapon = NewWeapon;
-
-	if (!NewWeapon)
-	{
-		return;
-	}
-
-	switch (NewWeapon->WeaponType)
-	{
-	case EWeaponType::Melee:
-		ConfigureAbilityStatsFromWeapon(AttackAbilitySpecHandle, NewWeapon);
-		break;
-	case EWeaponType::Ranged:
-		ConfigureAbilityStatsFromWeapon(RangedAttackAbilitySpecHandle, NewWeapon);
-		break;
-	case EWeaponType::Magic:
-		ConfigureAbilityStatsFromWeapon(MagicBoltAbilitySpecHandle, NewWeapon);
-		break;
-	}
-}
-
-void AAccidentalHeroCharacter::ConfigureAbilityStatsFromWeapon(const FGameplayAbilitySpecHandle& SpecHandle, const UWeaponDefinition* Weapon)
-{
-	if (!AbilitySystemComponent || !SpecHandle.IsValid())
-	{
-		return;
-	}
-
-	FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(SpecHandle);
-	if (!Spec)
-	{
-		return;
-	}
-
-	if (UGA_WeaponAttackBase* AbilityInstance = Cast<UGA_WeaponAttackBase>(Spec->GetPrimaryInstance()))
-	{
-		AbilityInstance->ConfigureFromWeapon(Weapon);
-	}
 }
 
 TArray<UItemDefinition*> AAccidentalHeroCharacter::FindItemsWithAnyTag(const FGameplayTagContainer& TagsToMatch) const

@@ -9,7 +9,7 @@
 class UFoliageHarvestSet;
 
 /**
- * Instant forward sphere-sweep, structurally parallel to UGA_WeaponAttackBase::ActivateAbility
+ * Instant forward sphere-sweep on activation
  * but sweeping ECC_WorldStatic (resource nodes are static props, not pawns) and calling
  * AResourceNode::Harvest() on the first hit instead of applying a GameplayEffect — resource nodes
  * don't have their own AbilitySystemComponent, so there's no ASC-to-ASC damage step here.

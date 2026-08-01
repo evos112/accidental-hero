@@ -45,18 +45,6 @@ public:
 	FGameplayAttributeData MaxHealth;
 	ACCIDENTALHERO_ATTRIBUTE_ACCESSORS(UAccidentalHeroAttributeSet, MaxHealth)
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Mana, Category = "Magic")
-	FGameplayAttributeData Mana;
-	ACCIDENTALHERO_ATTRIBUTE_ACCESSORS(UAccidentalHeroAttributeSet, Mana)
-
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxMana, Category = "Magic")
-	FGameplayAttributeData MaxMana;
-	ACCIDENTALHERO_ATTRIBUTE_ACCESSORS(UAccidentalHeroAttributeSet, MaxMana)
-
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ManaRegenRate, Category = "Magic")
-	FGameplayAttributeData ManaRegenRate;
-	ACCIDENTALHERO_ATTRIBUTE_ACCESSORS(UAccidentalHeroAttributeSet, ManaRegenRate)
-
 	/** Survival needs. Drain over time and are refilled by consumables; the inventory panel shows
 	 *  them alongside Health/Stamina so the player has one place to read their condition. */
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Hunger, Category = "Survival")
@@ -121,15 +109,6 @@ protected:
 
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
-
-	UFUNCTION()
-	void OnRep_Mana(const FGameplayAttributeData& OldValue);
-
-	UFUNCTION()
-	void OnRep_MaxMana(const FGameplayAttributeData& OldValue);
-
-	UFUNCTION()
-	void OnRep_ManaRegenRate(const FGameplayAttributeData& OldValue);
 };
 
 #undef ACCIDENTALHERO_ATTRIBUTE_ACCESSORS
